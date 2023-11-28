@@ -1,0 +1,64 @@
+#server file
+
+import socket
+
+def trace_packet(data, address):
+    print(f"Received data from {address}: {data.decode()}")
+
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_address = ('127.0.0.1', 12345)
+
+server_socket.bind(server_address)
+server_socket.listen(1)
+
+print("Server is listening...")
+
+while True:
+    client_socket, client_address = server_socket.accept()
+    print(f"Accepted connection from {client_address}")
+
+    try:
+        data = client_socket.recv(1024)
+        if data:
+            trace_packet(data, client_address)
+    except ConnectionResetError:
+        print("Connection reset by the client")
+    finally:
+        client_socket.close()
+import os
+import subprocess
+import socket
+
+# Firewall rules configuration
+ALLOWED_PORT = 12345  # Specify the port to allow
+
+def add_firewall_rules():
+    # Clear existing rules
+    subprocess.call(['iptables', '-F'])
+    
+    # Allow incoming connections to the specified port
+    subprocess.call(['iptables', '-A', 'INPUT', '-p', 'tcp', '--dport', str(ALLOWED_PORT), '-j', 'ACCEPT'])
+
+    # Allow established connections
+    subprocess.call(['iptables', '-A', 'INPUT', '-m', 'state', '--state', 'ESTABLISHED,RELATED', '-j', 'ACCEPT'])
+    
+    # Drop all other incoming connections
+    subprocess.call(['iptables', '-P', 'INPUT', 'DROP'])
+
+def main():
+    # Add firewall rules
+    add_firewall_rules()
+
+    # Start server
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('0.0.0.0', ALLOWED_PORT))
+    server_socket.listen(1)
+    print(f'Server listening on port {ALLOWED_PORT}')
+    
+    while True:
+        client_socket, client_address = server_socket.accept()
+        print(f'Accepted connection from {client_address[0]}:{client_address[1]}')
+        client_socket.close()
+
+if __name__ == '__main__':
+    main()
